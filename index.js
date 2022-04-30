@@ -9,17 +9,20 @@ class goAuthClient {
     this.axios.defaults.headers.common["Accept"] = "application/json";
     this.authListeners = [];
 
-    if (typeof window != 'undefined') {
-        console.log("browser")
-        this.accessToken = localStorage.getItem("accessToken")
-        this.refreshToken = localStorage.getItem("refreshToken")
-        this.axios.defaults.headers.common["X-Access-Token"] = this.accessToken;
-        this.refreshUser()
+    if (typeof window != "undefined") {
+      console.log("browser");
+      this.accessToken = localStorage.getItem("accessToken");
+      this.refreshToken = localStorage.getItem("refreshToken");
+
+      this.axios.defaults.headers.common["X-Access-Token"] = this.accessToken;
+      if (this.refreshToken) {
+        this.refreshUser();
+      }
     } else {
-        console.log("NODE")
-        this.accessToken = null;
-        this.refreshToken = null;
-        this.user = "";
+      console.log("NODE");
+      this.accessToken = null;
+      this.refreshToken = null;
+      this.user = "";
     }
   }
 
@@ -51,16 +54,33 @@ class goAuthClient {
   }
 
   async onSignIn(data) {
-    this.accessToken = data["access-token"];
-    this.refreshToken = data["refresh-token"];
+    this.setAccessToken(data["access-token"]);
+    this.setRefreshToken(data["refresh-token"]);
+    await this.getMe();
+  }
+
+  setUser(user) {
+    this.user = user;
+    this.authListeners.forEach((listener) => listener(this.user));
+  }
+
+  setAccessToken(accessToken) {
+    this.accessToken = accessToken;
     this.axios.defaults.headers.common["X-Access-Token"] = this.accessToken;
-    await this.getMe()
+    localStorage.setItem("accessToken", this.accessToken);
+  }
+
+  setRefreshToken(refreshToken, addToHeader = false) {
+    this.refreshToken = refreshToken;
+    if (addToHeader) {
+      this.axios.defaults.headers.common["X-Refresh-Token"] = this.refreshToken;
+    }
+    localStorage.setItem("refreshToken", this.refreshToken);
   }
 
   signOut() {
-    this.accessToken = null;
-    this.refreshToken = null;
-    this.axios.defaults.headers.common["X-Access-Token"] = null;
+    this.setAccessToken(null);
+    this.setRefreshToken(null);
     this.user = null;
     this.authListeners.forEach((listener) => listener(this.user));
   }
@@ -70,15 +90,23 @@ class goAuthClient {
   }
 
   async refreshUser() {
-    return this.format(this.axios.post("/refresh", {}, { headers: {
-        "X-Refresh-Token": this.refreshToken,
-    }}), this.onRefreshUser.bind(this));
+    return this.format(
+      this.axios.post(
+        "/refresh",
+        {},
+        {
+          headers: {
+            "X-Refresh-Token": this.refreshToken,
+          },
+        }
+      ),
+      this.onRefreshUser.bind(this)
+    );
   }
 
   onRefreshUser(data) {
-    this.accessToken = data["access-token"];
-    this.axios.defaults.headers.common["X-Access-Token"] = this.accessToken;
-    this.getMe()
+    this.setAccessToken(data["access-token"]);
+    this.getMe();
   }
 
   onAuthChanged(listener) {
@@ -90,10 +118,8 @@ class goAuthClient {
   }
 
   onGetMe(data) {
-    this.user = data.user;
-    this.authListeners.forEach((listener) => listener(this.user));
+    this.setUser(data.user);
   }
-
 
   removeListener(listener) {
     this.authListeners = this.authListeners.filter((l) => l !== listener);
@@ -135,37 +161,5 @@ class goAuthClient {
 const createClient = (url) => {
   return new goAuthClient(url);
 };
-
-
-const func = async () => {
-  const client = createClient("http://localhost:8080/api/v1/auth");
-
-  // try {
-
-//   const [ data, err ] = await client.signUp("ov2e1222rlor1d1.dam1ygod@gmail.com", "sad", "sadmanwhocares");
-  // console.log(data, err)
-  client.onAuthChanged((user) => {
-    console.log("CHANGED",user);
-  });
-  const a = await client.signIn(
-    "overlord.damygod@gmail.com",
-    "overlord789"
-  );
-//   console.log(data, err)
-  // console.log(client)
-//   const { data, error } = await client.verifyUser();
-//   console.log(data, error);
-    // const l = await client.refreshUser()
-    // console.log(l)
-  await client.signOut();
-  // } catch(err) {
-
-  //     console.log( err.response)
-  // }
-};
-
-func();
-
-
 
 export default { createClient };
