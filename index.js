@@ -8,6 +8,7 @@ class goAuthClient {
     this.axios.defaults.headers.common["Content-Type"] = "application/json";
     this.axios.defaults.headers.common["Accept"] = "application/json";
     this.authListeners = [];
+    this.refreshTimeout = null;
 
     if (typeof window != "undefined") {
       console.log("browser");
@@ -56,7 +57,15 @@ class goAuthClient {
   async onSignIn(data) {
     this.setAccessToken(data["access-token"]);
     this.setRefreshToken(data["refresh-token"]);
+    this.startRefreshTimeOut();
     await this.getMe();
+  }
+
+  startRefreshTimeOut() {
+    if ( this.refreshTimeout ) {
+      clearTimeout(this.refreshTimeout);
+    }
+    this.refreshTimeout = setTimeout(this.refreshUser.bind(this), 3600000);
   }
 
   setUser(user) {
@@ -79,10 +88,26 @@ class goAuthClient {
   }
 
   signOut() {
-    this.setAccessToken(null);
-    this.setRefreshToken(null);
-    this.user = null;
-    this.authListeners.forEach((listener) => listener(this.user));
+    const onSignOut = () => {
+      if ( this.refreshTimeout ) {
+        clearTimeout(this.refreshTimeout);
+      }
+      this.refreshTimeout = null;
+      this.setAccessToken(null);
+      this.setRefreshToken(null);
+      this.user = null;
+      this.authListeners.forEach((listener) => listener(this.user));
+    }
+
+    const signOutRes = this.format(this.axios.post(
+      "/signout",
+      {},
+      {
+        headers: {
+          "X-Refresh-Token": this.refreshToken,
+        },
+      }
+    ), onSignOut.bind(this))    
   }
 
   async verifyUser() {
@@ -100,13 +125,25 @@ class goAuthClient {
           },
         }
       ),
-      this.onRefreshUser.bind(this)
+      this.onRefreshUser.bind(this),
+      this.onRefreshError.bind(this)
     );
   }
 
   onRefreshUser(data) {
+    console.log("REFRESH_SUCCESS")
     this.setAccessToken(data["access-token"]);
+    this.startRefreshTimeOut();
     this.getMe();
+  }
+  
+  onRefreshError(err) {
+    console.log("REFRESH_ERROR")
+    if ( err.apiErr ) {
+      this.signOut();
+    } else {
+      console.log("SERVER ERR")
+    }
   }
 
   onAuthChanged(listener) {
@@ -142,14 +179,20 @@ class goAuthClient {
         error: null,
       };
     } catch (err) {
-      if (Object.keys(err.response.data).includes("error")) {
-        onError(err.response.data);
+      if (err.response.data && Object.keys(err.response.data).includes("error")) {
+        onError({
+          apiErr: true,
+          message: err.response.data
+        });
         return {
           data: null,
           error: err.response.data.message,
         };
       }
-      onError(err);
+      onError({
+        apiErr: false,
+        message: err
+      });
       return {
         data: null,
         error: err.message,
