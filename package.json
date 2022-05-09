@@ -1,6 +1,6 @@
 {
   "name": "go-auth-client",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Javascript client library for github.com/overlorddamygod/go-auth",
   "main": "index.js",
   "type": "module",

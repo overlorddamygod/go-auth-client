@@ -12,12 +12,28 @@ class goAuthClient {
 
     if (typeof window != "undefined") {
       console.log("browser");
-      this.accessToken = localStorage.getItem("accessToken");
-      this.refreshToken = localStorage.getItem("refreshToken");
+      const params = new URLSearchParams(window.location.search)
+      // get tokens from query
+      if ( params.has("type") && params.has("access_token") && params.has("refresh_token")) {
+        console.log("Signing in from magic link")
+        this.setAccessToken(params.get("access_token"));
+        this.setRefreshToken(params.get("refresh_token"));
 
-      this.axios.defaults.headers.common["X-Access-Token"] = this.accessToken;
-      if (this.refreshToken) {
-        this.refreshUser();
+        if (location.href.includes('?')) { 
+          history.pushState({}, null, location.href.split('?')[0]); 
+        }
+
+        this.getMe();
+        this.startRefreshTimeOut();
+      } else {
+
+        this.setAccessToken(localStorage.getItem("accessToken"));
+        this.setRefreshToken(localStorage.getItem("refreshToken"));
+
+        if (this.refreshToken && this.refreshToken.length > 20) {
+          console.log("Signing in from persistent token")
+          this.refreshUser();
+        }
       }
     } else {
       console.log("NODE");
@@ -47,16 +63,24 @@ class goAuthClient {
     return this.format(this.post("/signup", { email, name, password }));
   }
 
-  async signIn(email, password) {
+  async signInWithEmail(email, password) {
     return this.format(
-      this.post("/signin", { email, password }),
+      this.post("/signin?type=email", { email, password }),
       this.onSignIn.bind(this)
     );
   }
 
+  async signInWithMagicLink(email) {
+    return this.format(this.post("/signin?type=magiclink&redirect_to=http://localhost:3000", { email }), (data) => {
+      alert("Sent magic link to your email")
+    }, (err) => {
+      alert("Error sending magic link")
+    });
+  }
+
   async onSignIn(data) {
-    this.setAccessToken(data["access-token"]);
-    this.setRefreshToken(data["refresh-token"]);
+    this.setAccessToken(data["access_token"]);
+    this.setRefreshToken(data["refresh_token"]);
     this.startRefreshTimeOut();
     await this.getMe();
   }
@@ -88,7 +112,7 @@ class goAuthClient {
   }
 
   signOut() {
-    const onSignOut = () => {
+    function onSignOut() {
       if ( this.refreshTimeout ) {
         clearTimeout(this.refreshTimeout);
       }
@@ -173,7 +197,11 @@ class goAuthClient {
           error: response.data.error,
         };
       }
-      onSuccess(response.data);
+      if ("data" in response) {
+        onSuccess(response.data);
+      } else {
+        onSuccess()
+      }
       return {
         data: response.data,
         error: null,
