@@ -1,5 +1,5 @@
 # go-auth-client
-Javascript client library for [Go-auth](github.com/overlorddamygod/go-auth)
+Javascript client library for [Go-auth](https://github.com/overlorddamygod/go-auth)
 
 ## Installation
 
@@ -28,7 +28,11 @@ const {data, error} = await client.signUp("email", "username", "password")
 #### Signing In
 
 ```js
-const {data, error} = await client.signIn("email", "password")
+// Sign in with Email and Password
+const {data, error} = await client.signInWithEmail("email", "password")
+
+// Sign in with MagicLink
+const {data, error} = await client.signInWithMagicLink("email")
 ```
 
 #### SignOut
