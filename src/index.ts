@@ -73,12 +73,12 @@ class goAuthClient {
   }
 
   async signInWithProvider(provider: string) {
-    window.location.href =`${this.#axios.getUri()}/oauth?oauth_provider=${provider}&redirect_to=${window.location.hostname}`;
+    window.location.href =`${this.#axios.getUri()}/oauth?oauth_provider=${provider}&redirect_to=${window.location.host}`;
   }
 
   async signInWithMagicLink(email: string) {
     return this.#format(
-      this.#post(`/signin?type=magiclink&redirect_to=${window.location.hostname}`, {
+      this.#post(`/signin?type=magiclink&redirect_to=${window.location.host}`, {
         email,
       }),
       (data) => {
