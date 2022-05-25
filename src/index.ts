@@ -26,7 +26,7 @@ class goAuthClient {
         params.has("access_token") &&
         params.has("refresh_token")
       ) {
-        console.log("Signing in from magic link");
+        console.log("Signing in from", params.get("type"));
         this.#setAccessToken(params.get("access_token")!);
         this.#setRefreshToken(params.get("refresh_token")!);
 
@@ -72,9 +72,13 @@ class goAuthClient {
     );
   }
 
+  async signInWithProvider(provider: string) {
+    window.location.href =`${this.#axios.getUri()}/oauth?oauth_provider=${provider}&redirect_to=${window.location.hostname}`;
+  }
+
   async signInWithMagicLink(email: string) {
     return this.#format(
-      this.#post("/signin?type=magiclink&redirect_to=http://localhost:3000", {
+      this.#post(`/signin?type=magiclink&redirect_to=${window.location.hostname}`, {
         email,
       }),
       (data) => {

@@ -33,6 +33,10 @@ const {data, error} = await client.signInWithEmail("email", "password")
 
 // Sign in with MagicLink
 const {data, error} = await client.signInWithMagicLink("email")
+
+// Sign in with oauth provider 
+// Supported providers : github
+client.signInWithProvider("github")
 ```
 
 #### SignOut
