@@ -73,7 +73,9 @@ class goAuthClient {
   }
 
   async signInWithProvider(provider: string) {
-    window.location.href =`${this.#axios.getUri()}/oauth?oauth_provider=${provider}&redirect_to=${window.location.host}`;
+    const url = `${this.#axios.getUri()}/oauth?oauth_provider=${provider}&redirect_to=${window.location.protocol + "//"}${window.location.host}`
+
+    window.location.href = url
   }
 
   async signInWithMagicLink(email: string) {
