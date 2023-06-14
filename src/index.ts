@@ -8,7 +8,7 @@ class goAuthClient {
   user: User | null = null;
   #refreshTimeout: NodeJS.Timeout | null = null;
   #refreshToken: Token = null;
-  #accessToken: Token = null;
+  accessToken: Token = null;
 
   constructor(url: string) {
     this.#axios = axios.create({
@@ -18,7 +18,7 @@ class goAuthClient {
     this.#axios.defaults.headers.common["Accept"] = "application/json";
 
     if (typeof window != "undefined") {
-      console.log("browser");
+      // console.log("browser");
       const params = new URLSearchParams(window.location.search);
       // get tokens from query
       if (
@@ -46,8 +46,8 @@ class goAuthClient {
         }
       }
     } else {
-      console.log("NODE");
-      this.#accessToken = null;
+      // console.log("NODE");
+      this.accessToken = null;
       this.#refreshToken = null;
       this.user = null;
     }
@@ -112,9 +112,9 @@ class goAuthClient {
   }
 
   #setAccessToken(accessToken: Token) {
-    this.#accessToken = accessToken;
-    this.#axios.defaults.headers.common["X-Access-Token"] = this.#accessToken as string;
-    localStorage.setItem("accessToken", this.#accessToken as string);
+    this.accessToken = accessToken;
+    this.#axios.defaults.headers.common["X-Access-Token"] = this.accessToken as string;
+    localStorage.setItem("accessToken", this.accessToken as string);
   }
 
   #setRefreshToken(refreshToken: Token, addToHeader: boolean = false) {
@@ -168,10 +168,10 @@ class goAuthClient {
   }
 
   #onRefreshUser(data: {
-    "access-token": string
+    "access_token": string
   }) {
     console.log("REFRESH_SUCCESS");
-    this.#setAccessToken(data["access-token"] as string);
+    this.#setAccessToken(data["access_token"] as string);
     this.#startRefreshTimeOut();
     this.getMe();
   }
