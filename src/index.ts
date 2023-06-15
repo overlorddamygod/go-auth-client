@@ -1,21 +1,15 @@
-import axios, { AxiosInstance } from "axios";
 import { AuthListener, Token, User } from "./types";
 
-
 class goAuthClient {
-  #axios: AxiosInstance;
   #authListeners: AuthListener[] = [];
   user: User | null = null;
   #refreshTimeout: NodeJS.Timeout | null = null;
   #refreshToken: Token = null;
+  #baseUrl: string = "";
   accessToken: Token = null;
 
-  constructor(url: string) {
-    this.#axios = axios.create({
-      baseURL: url,
-    });
-    this.#axios.defaults.headers.common["Content-Type"] = "application/json";
-    this.#axios.defaults.headers.common["Accept"] = "application/json";
+  constructor(baseUrl: string) {
+    this.#baseUrl = baseUrl.replace(/\/$/, "");
 
     if (typeof window != "undefined") {
       // console.log("browser");
@@ -41,7 +35,7 @@ class goAuthClient {
         this.#setRefreshToken(localStorage.getItem("refreshToken")!);
 
         if (this.#refreshToken && this.#refreshToken.length > 20) {
-          console.log("Signing in from persistent token");
+          // console.log("Signing in from persistent token");
           this.refreshUser();
         }
       }
@@ -51,14 +45,6 @@ class goAuthClient {
       this.#refreshToken = null;
       this.user = null;
     }
-  }
-
-  async #get(url: string, params: object = {}) {
-    return this.#axios.get(url, { params });
-  }
-
-  async #post(url: string, data: object = {}) {
-    return this.#axios.post(url, data);
   }
 
   async signUp(email: string, name: string, password: string) {
@@ -73,9 +59,13 @@ class goAuthClient {
   }
 
   async signInWithProvider(provider: string) {
-    const url = `${this.#axios.getUri()}/oauth?oauth_provider=${provider}&redirect_to=${window.location.protocol + "//"}${window.location.host}`
+    const url = `${
+      this.#baseUrl
+    }/oauth?oauth_provider=${provider}&redirect_to=${
+      window.location.protocol + "//"
+    }${window.location.host}`;
 
-    window.location.href = url
+    window.location.href = url;
   }
 
   async signInWithMagicLink(email: string) {
@@ -113,27 +103,24 @@ class goAuthClient {
 
   #setAccessToken(accessToken: Token) {
     this.accessToken = accessToken;
-    this.#axios.defaults.headers.common["X-Access-Token"] = this.accessToken as string;
     localStorage.setItem("accessToken", this.accessToken as string);
   }
 
   #setRefreshToken(refreshToken: Token, addToHeader: boolean = false) {
     this.#refreshToken = refreshToken;
-    if (addToHeader) {
-      this.#axios.defaults.headers.common["X-Refresh-Token"] = this.#refreshToken as string;
-    }
+    // if (addToHeader) {
+    //   // this.#axios.defaults.headers.common["X-Refresh-Token"] = this.#refreshToken as string;
+    // }
     localStorage.setItem("refreshToken", this.#refreshToken as string);
   }
 
   signOut() {
     const signOutRes = this.#format(
-      this.#axios.post(
+      this.#post(
         "/signout",
         {},
         {
-          headers: {
-            "X-Refresh-Token": this.#refreshToken as string,
-          },
+          "X-Refresh-Token": this.#refreshToken as string,
         }
       ),
       this.#onSignOut.bind(this)
@@ -153,13 +140,11 @@ class goAuthClient {
 
   async refreshUser() {
     return this.#format(
-      this.#axios.post(
+      this.#post(
         "/refresh",
         {},
         {
-          headers: {
-            "X-Refresh-Token": this.#refreshToken as string,
-          },
+          "X-Refresh-Token": this.#refreshToken as string,
         }
       ),
       this.#onRefreshUser.bind(this) as any,
@@ -167,17 +152,15 @@ class goAuthClient {
     );
   }
 
-  #onRefreshUser(data: {
-    "access_token": string
-  }) {
-    console.log("REFRESH_SUCCESS");
+  #onRefreshUser(data: { access_token: string }) {
+    // console.log("REFRESH_SUCCESS");
     this.#setAccessToken(data["access_token"] as string);
     this.#startRefreshTimeOut();
     this.getMe();
   }
 
   #onRefreshError(err: any) {
-    console.log("REFRESH_ERROR");
+    // console.log("REFRESH_ERROR");
     if (err.apiErr) {
       this.signOut();
     } else {
@@ -190,7 +173,12 @@ class goAuthClient {
   }
 
   getMe() {
-    return this.#format(this.#get("/me"), this.#onGetMe.bind(this));
+    return this.#format(
+      this.#get("/me", {
+        "X-Access-Token": this.accessToken as string,
+      }),
+      this.#onGetMe.bind(this)
+    );
   }
 
   #onGetMe(data: any) {
@@ -201,44 +189,55 @@ class goAuthClient {
     this.#authListeners = this.#authListeners.filter((l) => l !== listener);
   }
 
+  async #get(url: string, headers: object = {}) {
+    const response = await fetch(this.#baseUrl + url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...headers,
+      },
+    });
+    return response.json();
+  }
+
+  async #post(url: string, data: object = {}, headers: object = {}) {
+    const response = await fetch(this.#baseUrl + url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...headers,
+      },
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  }
+
   async #format(
     func: any,
     onSuccess = (obj: object = {}) => {},
     onError = (obj: object) => {}
-  ): Promise<{ data: any, error: string | null}> {
+  ): Promise<{ data: any; error: string | null }> {
     try {
-      const response = await func;
+      const data = await func;
+      // console.log("RESPONSE",data)
 
-      if (response.data.error) {
-        onError(response.data.error);
+      if (data.error) {
+        onError(data.error);
         return {
           data: null,
-          error: response.data.error,
+          error: data.error,
         };
       }
-      if ("data" in response) {
-        onSuccess(response.data);
-      } else {
-        onSuccess();
-      }
+
+      onSuccess(data);
       return {
-        data: response.data,
+        data,
         error: null,
       };
     } catch (err: any) {
-      if (
-        err.response.data &&
-        Object.keys(err.response.data).includes("error")
-      ) {
-        onError({
-          apiErr: true,
-          message: err.response.data,
-        });
-        return {
-          data: null,
-          error: err.response.data.message,
-        };
-      }
+      // console.log("ERR", err)
       onError({
         apiErr: false,
         message: err,

@@ -1,6 +1,6 @@
 {
   "name": "go-auth-client",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "Javascript client library for github.com/overlorddamygod/go-auth",
   "author": "",
   "license": "ISC",
@@ -10,8 +10,7 @@
     "_publish": "npx tsc && npm publish"
   },
   "dependencies": {
-    "@types/web": "^0.0.64",
-    "axios": "^0.27.2"
+    "@types/web": "^0.0.64"
   },
   "devDependencies": {
     "@tsconfig/node16": "^1.0.2",
