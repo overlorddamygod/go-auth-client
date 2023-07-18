@@ -224,10 +224,10 @@ class goAuthClient {
       // console.log("RESPONSE",data)
 
       if (data.error) {
-        onError(data.error);
+        onError(data);
         return {
           data: null,
-          error: data.error,
+          error: data.message,
         };
       }
 
